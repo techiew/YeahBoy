@@ -2,3 +2,21 @@
 *.db
 
 .vs/YeahBoy/v15/
+
+*.tlog
+
+*.obj
+
+*.pdb
+
+*.idb
+
+*.log
+
+*.ilk
+
+*.iobj
+
+*.ipdb
+
+*.exe

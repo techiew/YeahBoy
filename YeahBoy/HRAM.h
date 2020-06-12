@@ -1,12 +1,12 @@
 #pragma once
 
 #include <vector>
-#include "DebugConsole.h"
+#include <iostream>
 
 class HRAM // High RAM
 {
 private:
-	std::vector<uint8_t> bytes = std::vector<uint8_t>(160, 0);
+	std::vector<uint8_t> bytes = std::vector<uint8_t>(127, 0);
 
 public:
 	uint8_t Read(uint16_t address);

@@ -4,12 +4,13 @@ Bus::Bus()
 {
 }
 
-Bus::Bus(VRAM* vram, WRAM* wram, OAM* oam, HRAM* hram)
+Bus::Bus(VRAM* vram, WRAM* wram, OAM* oam, HRAM* hram, Cartridge* cartridge)
 {
 	this->vram = vram;
 	this->wram = wram;
 	this->oam = oam;
 	this->hram = hram;
+	this->cartridge = cartridge;
 }
 
 uint8_t Bus::Read(uint16_t address)
@@ -22,10 +23,11 @@ uint8_t Bus::Read(uint16_t address)
 	else if (address <= 0x9FFF) // Video memory (VRAM)
 	{
 		return vram->Read(address);
+		//return memory.Read(memory.Sections.VRAM, address);
 	}
 	else if (address <= 0xBFFF) // External RAM (ERAM, inside cartridge)
 	{
-		return cartridge->Read(address);
+		return cartridge->ReadERAM(address);
 	}
 	else if (address <= 0xDFFF) // Work RAM (normal memory)
 	{
@@ -56,6 +58,7 @@ uint8_t Bus::Read(uint16_t address)
 		return ir;
 	}
 
+	return 0x00;
 }
 
 bool Bus::Write(uint16_t address, uint8_t byte)
@@ -103,8 +106,4 @@ bool Bus::Write(uint16_t address, uint8_t byte)
 	}
 
 	return true;
-}
-
-Bus::~Bus()
-{
 }

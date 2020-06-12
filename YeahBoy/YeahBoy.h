@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+#include <thread>
 #include "CPU.h"
 #include "Bus.h"
 #include "Cartridge.h"
@@ -11,13 +13,13 @@
 class YeahBoy
 {
 private:
-	DebugConsole debugConsole;
 	CPU cpu;
 	VRAM vram;
 	WRAM wram;
 	OAM oam;
 	HRAM hram;
 	Bus bus;
+	Cartridge cartridge;
 
 public:
 	YeahBoy();

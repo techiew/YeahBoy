@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include "DebugConsole.h"
+#include <iostream>
 
 class OAM // Object attribute memory, also called the sprite attribute table
 {

@@ -6,7 +6,7 @@ uint8_t OAM::Read(uint16_t address)
 
 	if (offset < 0 || offset > (bytes.size() - 1))
 	{
-		PrintDebugMsg("OAM ERROR: tried to read memory out of range", 0);
+		std::cerr << "OAM ERROR: tried to read memory out of range" << std::endl;
 		return 0;
 	}
 
@@ -19,7 +19,7 @@ bool OAM::Write(uint16_t address, uint8_t byte)
 
 	if (offset < 0 || offset > (bytes.size() - 1))
 	{
-		PrintDebugMsg("OAM ERROR: tried to write to memory out of range", 0);
+		std::cerr << "OAM ERROR: tried to write to memory out of range" << std::endl;
 		return false;
 	}
 

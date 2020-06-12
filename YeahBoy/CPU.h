@@ -1,15 +1,18 @@
 #pragma once
 
 #include <cstdint>
+#include <chrono>
+#include <thread>
+#include <windows.h>
+#include <iostream>
 #include "Bus.h"
 
 class CPU
 {
 private:
-	double clockSpeed = 0;
 	uint16_t absoluteAddr = 0;
 	uint16_t relativeAddr = 0;
-	uint8_t fetched = 0;
+	uint16_t operand = 0;
 	uint8_t opcode = 0;
 	uint8_t cycles = 0;
 	uint8_t* r1 = nullptr;
@@ -17,14 +20,19 @@ private:
 	uint8_t* r3 = nullptr;
 	uint8_t* r4 = nullptr;
 	Bus* bus;
+	bool jumped = false;
+
+	std::vector<uint8_t> debugMemory;
+	bool debugMode = false;
+	bool debugBreak = false;
 
 	struct ClockSpeeds
 	{
-		const double GB = 4.194304;
-		const double SGB = 4.295454;
-		const double GBC = 4.194304;
-		const double GBCDS = 8.388608;
-	};
+		double GB = 4194304;
+		double SGB = 4295454;
+		double GBC = 4194304;
+		double GBCDS = 8388608;
+	} clockSpeeds;
 
 	struct Registers
 	{
@@ -33,24 +41,27 @@ private:
 		* A = accumulator
 		* B, C, D, E, H, L = general purpose registers
 		*/
-		uint8_t a = 0, f = 0;
-		uint8_t b = 0, c = 0, d = 0, e = 0, h = 0, l = 0;
+		uint8_t A = 0;
+		uint8_t B = 0, C = 0, D = 0, E = 0, H = 0, L = 0;
 
 		/*
 		* 16-bit registers
 		* SP = stack pointer, PC = program counter
 		*/
-		uint16_t sp = 0, pc = 0;
-	};
+		uint16_t SP = 0, PC = 0;
+	} registers;
 
-	struct Flags // A bit field
+	struct Flags // A bit field for the flag register
 	{
 		uint8_t : 4; // Not used
-		uint8_t cy : 1; // Carry flag
-		uint8_t h : 1; // Half carry flag
-		uint8_t n : 1; // Add/sub-flag
-		uint8_t zf : 1; // Zero flag
-	};
+		uint8_t C : 1; // Carry flag
+		uint8_t H : 1; // Half carry flag
+		uint8_t N : 1; // Add/sub-flag
+		uint8_t Z : 1; // Zero flag
+	} flags;
+
+	// Addressing modes
+	uint16_t Immediate();
 
 	/* 
 	* A lowercase o stands for offset, which means to add left side value to right side value to get proper memory location
@@ -68,15 +79,15 @@ private:
 		ADDA_B(), ADDA_C(), ADDA_D(), ADDA_E(), ADDA_H(), ADDA_L(), ADDA_aHL(), ADDA_A(), ADCA_B(), ADCA_C(), ADCA_D(), ADCA_E(), ADCA_H(), ADCA_L(), ADCA_aHL(), ADCA_A(),
 		SUBB(), SUBC(), SUBD(), SUBE(), SUBH(), SUBL(), SUBaHL(), SUBA(), SBCA_B(), SBCA_C(), SBCA_D(), SBCA_E(), SBCA_H(), SBCA_L(), SBCA_aHL(), SBCA_A(),
 		ANDB(), ANDC(), ANDD(), ANDE(), ANDH(), ANDL(), ANDaHL(), ANDA(), XORB(), XORC(), XORD(), XORE(), XORH(), XORL(), XORaHL(), XORA(),
-		ORB(), ORC(), ORD(), ORE(), ORH(), ORL(), ORaHL(), ORA(), CPB(), CPC(), CPD(), CPE(), CPH(), CPL(), CPaHL(), CPA(),
+		ORB(), ORC(), ORD(), ORE(), ORH(), ORL(), ORaHL(), ORA(), CPB(), CPC(), CPD(), CPE(), CPH(), CP_L(), CPaHL(), CPA(),
 		RETNZ(), POPBC(), JPNZ_a16(), JPa16(), CALLNZ_a16(), PUSHBC(), ADDA_d8(), RST00H(), RETZ(), RET(), JPZ_a16(), PREFIXCB(), CALLZ_a16(), CALLa16(), ADCA_d8(), RST08H(),
 		RETNC(), POPDE(), JPNC_a16(), /*BLANK*/ CALLNC_a16(), PUSHDE(), SUBd8(), RST10H(), RETC(), RETI(), JPC_a16(), /*BLANK*/ CALLC_a16(), /*BLANK*/ SBCA_d8(), RST18H(),
 		LDHaa8_A(), POPHL(), LDaC_A(), /*BLANK*/ /*BLANK*/ PUSHHL(), ANDd8(), RST20H(), ADDSP_r8(), JPaHL(), LDaa16_A(), /*BLANK*/ /*BLANK*/ /*BLANK*/ XORd8(), RST28H(),
 		LDHA_aa8(), POPAF(), LDA_aC(), DI(), /*BLANK*/ PUSHAF(), ORd8(), RST30H(), LDHL_SPor8(), LDSP_HL(), LDA_aa16(), EI(), /*BLANK*/ /*BLANK*/ CPd8(), RST38H(),
 
 		// Instructions prefixed with 0xCB (PREFIXCB instruction):
-		RLCB(), RLCC(), RLCD(), RLCE(), RLCH(), RLCL(), RLCaHL(), RLCA(), RRCB(), RRCC(), RRCD(), RRCE(), RRCH(), RRCL(), RRCaHL(), RRCA(),
-		RLB(), RLC(), RLD(), RLE(), RLH(), RLL(), RLaHL(), RLA(), RRB(), RRC(), RRD(), RRE(), RRH(), RRL(), RRaHL(), RRA(),
+		RLCB(), RLCC(), RLCD(), RLCE(), RLCH(), RLCL(), RLCaHL(), RLC_A(), RRCB(), RRCC(), RRCD(), RRCE(), RRCH(), RRCL(), RRCaHL(), RRC_A(),
+		RLB(), RLC(), RLD(), RLE(), RLH(), RLL(), RLaHL(), RL_A(), RRB(), RRC(), RRD(), RRE(), RRH(), RRL(), RRaHL(), RR_A(),
 		SLAB(), SLAC(), SLAD(), SLAE(), SLAH(), SLAL(), SLAaHL(), SLAA(), SRAB(), SRAC(), SRAD(), SRAE(), SRAH(), SRAL(), SRAaHL(), SRAA(),
 		SWAPB(), SWAPC(), SWAPD(), SWAPE(), SWAPH(), SWAPL(), SWAPaHL(), SWAPA(), SRLB(), SRLC(), SRLD(), SRLE(), SRLH(), SRLL(), SRLaHL(), SRLA(),
 		BIT0_B(), BIT0_C(), BIT0_D(), BIT0_E(), BIT0_H(), BIT0_L(), BIT0_aHL(), BIT0_A(), BIT1_B(), BIT1_C(), BIT1_D(), BIT1_E(), BIT1_H(), BIT1_L(), BIT1_aHL(), BIT1_A(),
@@ -98,24 +109,23 @@ private:
 	// Instructions with no operand do not have and do not need a generic implementation
 	bool
 		// 8-bit loads
-		ImpLDR_d8(), ImpLDRR_d8(), ImpLDR_R(), ImpLDR_aRR(), ImpLDaRR_R(), ImpLDR_aa16, ImpLDR_d16(),
-		ImpLDR_azR(), ImpLDazR_R(), ImpLDazd8_R(), ImpLDR_azd8(),
+		ImpLDR_R(), ImpLDR_d8(),
 		// 16-bit loads
-		ImpLDRR_d16(), ImpLDRR_RR(), ImpLDRR_RRod8(), ImpLDaa16_RR(), ImpPUSHRR(), ImpPOPRR(),
+		ImpLDRR_d16(), ImpLDRR_RR(), ImpLDaa16_RR(), ImpPUSHRR(), ImpPOPRR(),
 		// 8-bit ALU
 		ImpADDR_R(), ImpADDR_aRR(), ImpADDR_d8(), ImpADCR_R(), ImpADCR_aRR(), ImpADCR_d8(), ImpSUBR_R(),
-		ImpSUBR_aRR(), ImpSUBR_d8(), ImpSBCR_R(), ImpSBCR_aRR(), ImpSBCR_d8(), ImpANDR_R(), ImpANDR_aRR(), 
+		ImpSUBR_aRR(), ImpSUBR_d8(), ImpSBCR_R(), ImpSBCR_aRR(), ImpSBCR_d8(), ImpANDR_R(), ImpANDR_aRR(),
 		ImpANDR_d8(), ImpORR_R(), ImpORR_aRR(), ImpORR_d8(), ImpXORR_R(), ImpXORR_aRR(), ImpXORR_d8(),
-		ImpCPR_R(), ImpCPR_aRR(), ImpCPR_d8(), ImpINCR(), ImpINCaRR(), ImpDECR(), ImpDECaRR(), 
+		ImpCPR_R(), ImpCPR_aRR(), ImpCPR_d8(), ImpINCR(), ImpINCaRR(), ImpDECR(), ImpDECaRR(),
 		// 16-bit arithmetic
-		ImpADDRR_RR(), ImpADDRR_r8(), ImpINCRR(), ImpDECRR(), 
+		ImpADDRR_RR(), ImpADDRR_r8(), ImpINCRR(), ImpDECRR(),
 		// Miscellaneous
-		ImpSWAPR(), ImpSWAPaRR(), 
+		ImpSWAPR(), ImpSWAPaRR(),
 		// Rotates & shifts
 		ImpRLCR(), ImpRLCaRR(), ImpRLR(), ImpRLaRR(), ImpRRCR(), ImpRRCaRR(), ImpRRR(), ImpRRaRR(),
-		ImpSLAR(), ImpSLAaRR(), ImpSRAR(), ImpSRAaRR(), ImpSRLR(), ImpSRLaRR(), 
+		ImpSLAR(), ImpSLAaRR(), ImpSRAR(), ImpSRAaRR(), ImpSRLR(), ImpSRLaRR(),
 		// Bit opcodes
-		ImpBITR(), ImpBITaRR(),
+		ImpBITR(), ImpBITaRR();
 
 	struct Instruction
 	{
@@ -124,24 +134,22 @@ private:
 		uint8_t size;
 		uint8_t cycles[2];
 		bool (CPU::*operation)(void) = nullptr;
-		bool (CPU::*addressingMode)(void) = nullptr;
+		uint16_t (CPU::*addressingMode)(void) = nullptr;
 	};
 
 	std::vector<Instruction> IS = {
-		{"NOP", 0x00, 1, {4}, &NOP, &mode}
+		{"NOP", 0x00, 1, {4}, &CPU::NOP, nullptr}, {"LDBC_d16", 0x01, 3, {12}, &CPU::LDBC_d16, &CPU::Immediate}
 	};
 
-	ClockSpeeds clockSpeeds;
-	Registers registers;
-	Flags flags;
-
-	uint8_t Fetch();
+	uint8_t Fetch(uint16_t address);
+	void PrintRegisters();
 
 public:
+	double clockSpeed = 0;
+
 	CPU();
 	CPU(Bus* bus);
 	void Clock();
-	void interruptRequest();
-	void interruptRequestNonMaskable();
-	~CPU();
+	void InterruptRequest();
+	void InterruptRequestNonMaskable();
 };

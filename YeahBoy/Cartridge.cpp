@@ -11,20 +11,20 @@ uint8_t Cartridge::ReadROM(uint16_t address)
 
 	if (offset < 0 || offset > (rom.size() - 1))
 	{
-		PrintDebugMsg("CARTRIDGE ROM ERROR: tried to read memory out of range", 0);
+		std::cerr << "CARTRIDGE ROM ERROR: tried to read memory out of range" << std::endl;
 		return 0;
 	}
 
 	return rom.at(offset);
 }
 
-uint8_t Cartridge::Read(uint16_t address)
+uint8_t Cartridge::ReadERAM(uint16_t address)
 {
 	int offset = address - 0xA000;
 
 	if (offset < 0 || offset > (eram.size() - 1))
 	{
-		PrintDebugMsg("CARTRIDGE ERAM ERROR: tried to read memory out of range", 0);
+		std::cerr << "CARTRIDGE ERAM ERROR: tried to read memory out of range" << std::endl;
 		return 0;
 	}
 
@@ -37,7 +37,7 @@ bool Cartridge::Write(uint16_t address, uint8_t byte)
 
 	if (offset < 0 || offset > (eram.size() - 1))
 	{
-		PrintDebugMsg("CARTRIDGE ERAM ERROR: tried to write to memory out of range", 0);
+		std::cerr << "CARTRIDGE ERAM ERROR: tried to write to memory out of range" << std::endl;
 		return false;
 	}
 
